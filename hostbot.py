@@ -15,12 +15,13 @@ init(autoreset=True)
 if os.path.exists("tg_data") and os.path.isdir("tg_data"):
     try:
         shutil.rmtree("tg_data")
-    except:
+    except Exception:
         pass
-        
+
 KEY_FILE_TXT = "key.txt"
 KEY_FILE_JSON = "key.json"
 BOT_TOKEN = None
+ADMIN_ID = None  # Telegram user ID of the admin
 
 CHOICES = {
     1: "Garena",
@@ -60,10 +61,22 @@ def save_keys_json(keys):
     with open(KEY_FILE_JSON, "w") as f:
         json.dump(keys, f, indent=2)
 
-def pause_and_clear():
-    input(Fore.YELLOW + "\nPress Enter to return to main menu..." + Style.RESET_ALL)
-    os.system("clear")
-    print_center_banner()
+def load_bot_token():
+    global BOT_TOKEN, ADMIN_ID
+    if os.path.exists(KEY_FILE_TXT):
+        with open(KEY_FILE_TXT, "r") as f:
+            lines = [line.strip() for line in f if line.strip()]
+            if lines:
+                BOT_TOKEN = lines[0]
+                # Optional: store admin telegram ID on second line
+                if len(lines) > 1:
+                    try:
+                        ADMIN_ID = int(lines[1])
+                    except ValueError:
+                        ADMIN_ID = None
+                initial_keys = lines[2:]
+                if initial_keys:
+                    save_keys_json(initial_keys)
 
 def print_center_banner():
     os.system("clear")
@@ -74,94 +87,25 @@ def print_center_banner():
     for line in BANNER.split("\n"):
         print(line.center(width))
 
-# ---------- Menu ----------
-def menu():
-    global BOT_TOKEN
-    print_center_banner()
-
-    # Load bot token and keys from key.txt
-    if os.path.exists(KEY_FILE_TXT):
-        with open(KEY_FILE_TXT, "r") as f:
-            lines = [line.strip() for line in f if line.strip()]
-            if lines:
-                BOT_TOKEN = lines[0]
-                initial_keys = lines[1:]
-                if initial_keys:
-                    save_keys_json(initial_keys)
-
-    while True:
-        print(Fore.MAGENTA + "\n===== BOT MENU =====" + Style.RESET_ALL)
-        print(Fore.CYAN + "[1]" + Fore.WHITE + " > Create/Add KEY")
-        print(Fore.CYAN + "[2]" + Fore.WHITE + " > Delete KEY")
-        print(Fore.CYAN + "[3]" + Fore.WHITE + " > Start bot")
-        print(Fore.CYAN + "[4]" + Fore.WHITE + " > Exit")
-        print(Fore.MAGENTA + "====================" + Style.RESET_ALL)
-        choice = input(Fore.GREEN + "Choose a menu: " + Style.RESET_ALL).strip()
-
-        if choice == "1":
-            key = input(Fore.GREEN + "Enter new key: " + Style.RESET_ALL).strip()
-            if not key:
-                print(Fore.RED + "❌ Key cannot be empty!")
-            else:
-                keys = load_keys_json()
-                if key in keys:
-                    print(Fore.YELLOW + "⚠️ Key already exists!")
-                else:
-                    keys.append(key)
-                    save_keys_json(keys)
-                    print(Fore.GREEN + "✅ Key added!")
-            pause_and_clear()
-
-        elif choice == "2":
-            keys = load_keys_json()
-            if not keys:
-                print(Fore.RED + "❌ No keys to delete!")
-                pause_and_clear()
-                continue
-
-            print(Fore.CYAN + "Current keys:" + Style.RESET_ALL)
-            for i, k in enumerate(keys, 1):
-                print(f"[{i}] {k}")
-            num = input(Fore.GREEN + "Enter the number of the key to delete: " + Style.RESET_ALL).strip()
-            if not num.isdigit() or int(num) < 1 or int(num) > len(keys):
-                print(Fore.RED + "❌ Invalid number!")
-            else:
-                removed = keys.pop(int(num)-1)
-                save_keys_json(keys)
-                print(Fore.GREEN + f"✅ Key '{removed}' deleted!")
-            pause_and_clear()
-
-        elif choice == "3":
-            if not BOT_TOKEN:
-                print(Fore.RED + "❌ Bot token not found in key.txt!")
-                pause_and_clear()
-            else:
-                keys = load_keys_json()
-                if not keys:
-                    print(Fore.RED + "❌ No keys found! Add at least one key.")
-                    pause_and_clear()
-                else:
-                    start_bot()
-                    pause_and_clear()
-
-        elif choice == "4":
-            print(Fore.CYAN + "👋 Exiting program...")
-            exit()
-
-        else:
-            print(Fore.RED + "❌ Invalid choice! Please enter 1–4.")
-            pause_and_clear()
-
 # ---------- Bot ----------
 def start_bot():
+    load_bot_token()
+    if not BOT_TOKEN:
+        print(Fore.RED + "❌ Bot token not found in key.txt!" + Style.RESET_ALL)
+        return
+    if not ADMIN_ID:
+        print(Fore.YELLOW + "⚠️ Admin ID not set in key.txt (optional, admin commands won't work)" + Style.RESET_ALL)
+
     bot = telebot.TeleBot(BOT_TOKEN)
 
+    # ----- /start -----
     @bot.message_handler(commands=['start'])
     def start_cmd(message):
         kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
         kb.add(types.KeyboardButton("/key"))
         bot.send_message(message.chat.id, "👋 Welcome! Tap /key to enter your key.", reply_markup=kb)
 
+    # ----- /key -----
     @bot.message_handler(commands=['key'])
     def ask_key(message):
         msg = bot.send_message(message.chat.id, "🔑 Please enter your key:")
@@ -194,6 +138,54 @@ def start_bot():
         time.sleep(delay)
         bot_instance.send_message(chat_id, "⚠️ Please try again later, server is busy.")
 
+    # ----- Admin-only: /addkey -----
+    @bot.message_handler(commands=['addkey'])
+    def add_key_cmd(message):
+        if ADMIN_ID and message.from_user.id != ADMIN_ID:
+            bot.reply_to(message, "❌ You are not authorized to add keys.")
+            return
+        msg = bot.send_message(message.chat.id, "🔑 Enter new key to add:")
+        bot.register_next_step_handler(msg, add_key)
+
+    def add_key(message):
+        key = (message.text or "").strip()
+        if not key:
+            bot.reply_to(message, "❌ Key cannot be empty.")
+            return
+        keys = load_keys_json()
+        if key in keys:
+            bot.reply_to(message, "⚠️ Key already exists!")
+        else:
+            keys.append(key)
+            save_keys_json(keys)
+            bot.reply_to(message, f"✅ Key '{key}' added!")
+
+    # ----- Admin-only: /delkey -----
+    @bot.message_handler(commands=['delkey'])
+    def del_key_cmd(message):
+        if ADMIN_ID and message.from_user.id != ADMIN_ID:
+            bot.reply_to(message, "❌ You are not authorized to delete keys.")
+            return
+        keys = load_keys_json()
+        if not keys:
+            bot.reply_to(message, "❌ No keys to delete!")
+            return
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        for i, k in enumerate(keys, 1):
+            kb.add(types.InlineKeyboardButton(k, callback_data=f"del_{i-1}"))
+        bot.send_message(message.chat.id, "🗑️ Select key to delete:", reply_markup=kb)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("del_"))
+    def handle_del_key(call):
+        index = int(call.data.split("_")[1])
+        keys = load_keys_json()
+        if 0 <= index < len(keys):
+            removed = keys.pop(index)
+            save_keys_json(keys)
+            bot.edit_message_text(f"✅ Key '{removed}' deleted!", call.message.chat.id, call.message.message_id)
+        else:
+            bot.answer_callback_query(call.id, "❌ Invalid key index.")
+
     print(Fore.GREEN + "\n🤖 Bot is running... Press Ctrl+C to stop.")
     try:
         bot.infinity_polling()
@@ -205,13 +197,5 @@ def start_bot():
 # ---------- Main ----------
 if __name__ == "__main__":
     print_center_banner()
-    try:
-        # Try interactive menu
-        menu()
-    except EOFError:
-        # If stdin is missing (non-interactive, e.g. auto-launch from script.py)
-        print(Fore.YELLOW + "⚠️ No interactive input available. Auto-starting bot..." + Style.RESET_ALL)
-        if BOT_TOKEN:
-            start_bot()
-        else:
-            print(Fore.RED + "❌ Bot token not found in key.txt!" + Style.RESET_ALL)
+    load_bot_token()
+    start_bot()
