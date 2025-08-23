@@ -1,4 +1,4 @@
-# telebot_key_inline_buttons_delay_banner.py
+# telebot_key_inline_buttons_delay_banner_safe.py
 import os
 import telebot
 from telebot import types
@@ -6,18 +6,10 @@ import random
 import threading
 import time
 import json
-import shutil  # <- add this if not already imported
 from colorama import Fore, Style, init
 
 init(autoreset=True)
 
-# ---------- Cleanup ----------
-if os.path.exists("tg_data") and os.path.isdir("tg_data"):
-    try:
-        shutil.rmtree("tg_data")
-    except:
-        pass
-        
 KEY_FILE_TXT = "key.txt"
 KEY_FILE_JSON = "key.json"
 BOT_TOKEN = None
@@ -49,6 +41,14 @@ BANNER = f"""{Fore.CYAN}
 ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ 
 {Style.RESET_ALL}"""
 
+# ---------- Safe Input ----------
+def safe_input(prompt):
+    try:
+        return input(prompt)
+    except EOFError:
+        print(Fore.RED + "\n❌ No input available. Exiting..." + Style.RESET_ALL)
+        exit()
+
 # ---------- Helpers ----------
 def load_keys_json():
     if not os.path.exists(KEY_FILE_JSON):
@@ -61,7 +61,7 @@ def save_keys_json(keys):
         json.dump(keys, f, indent=2)
 
 def pause_and_clear():
-    input(Fore.YELLOW + "\nPress Enter to return to main menu..." + Style.RESET_ALL)
+    safe_input(Fore.YELLOW + "\nPress Enter to return to main menu..." + Style.RESET_ALL)
     os.system("clear")
     print_center_banner()
 
@@ -96,10 +96,11 @@ def menu():
         print(Fore.CYAN + "[3]" + Fore.WHITE + " > Start bot")
         print(Fore.CYAN + "[4]" + Fore.WHITE + " > Exit")
         print(Fore.MAGENTA + "====================" + Style.RESET_ALL)
-        choice = input(Fore.GREEN + "Choose a menu: " + Style.RESET_ALL).strip()
+
+        choice = safe_input(Fore.GREEN + "Choose a menu: " + Style.RESET_ALL).strip()
 
         if choice == "1":
-            key = input(Fore.GREEN + "Enter new key: " + Style.RESET_ALL).strip()
+            key = safe_input(Fore.GREEN + "Enter new key: " + Style.RESET_ALL).strip()
             if not key:
                 print(Fore.RED + "❌ Key cannot be empty!")
             else:
@@ -122,7 +123,7 @@ def menu():
             print(Fore.CYAN + "Current keys:" + Style.RESET_ALL)
             for i, k in enumerate(keys, 1):
                 print(f"[{i}] {k}")
-            num = input(Fore.GREEN + "Enter the number of the key to delete: " + Style.RESET_ALL).strip()
+            num = safe_input(Fore.GREEN + "Enter the number of the key to delete: " + Style.RESET_ALL).strip()
             if not num.isdigit() or int(num) < 1 or int(num) > len(keys):
                 print(Fore.RED + "❌ Invalid number!")
             else:
