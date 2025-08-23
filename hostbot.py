@@ -1,11 +1,208 @@
+# telebot_key_inline_buttons_delay_banner.py
+import os
+import telebot
+from telebot import types
+import random
+import threading
+import time
+import json
+import shutil  # <- add this if not already imported
+from colorama import Fore, Style, init
 
-import os, sys, datetime, marshal, lzma, base64
+init(autoreset=True)
 
-_exp = base64.b64decode('MjAyNS0wOC0yNQ==').decode()
-if datetime.date.today() > datetime.date.fromisoformat(_exp):
-    print("This script has expired.")
-    os.remove(__file__)
-    sys.exit()
+# ---------- Cleanup ----------
+if os.path.exists("tg_data") and os.path.isdir("tg_data"):
+    try:
+        shutil.rmtree("tg_data")
+    except:
+        pass
+        
+KEY_FILE_TXT = "key.txt"
+KEY_FILE_JSON = "key.json"
+BOT_TOKEN = None
 
-_payload = base64.b64decode('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')
-exec(marshal.loads(lzma.decompress(_payload)))
+CHOICES = {
+    1: "Garena",
+    2: "Mobile legend",
+    3: "SSO",
+    4: "100082",
+    5: "Roblox",
+    6: "Steam",
+    7: "Authgop",
+    8: "Freefire",
+    9: "Paypal",
+    10: "Facebook",
+    11: "Valorant",
+    12: "Gaslight",
+    13: "Discord",
+    14: "Tiktok",
+    15: "Spotify"
+}
+
+BANNER = f"""{Fore.CYAN}
+██╗  ██╗███████╗███╗   ██╗███████╗██╗   ██╗
+██║ ██╔╝██╔════╝████╗  ██║╚══███╔╝██║   ██║
+█████╔╝ █████╗  ██╔██╗ ██║  ███╔╝ ██║   ██║
+██╔═██╗ ██╔══╝  ██║╚██╗██║ ███╔╝  ██║   ██║
+██║  ██╗███████╗██║ ╚████║███████╗╚██████╔╝
+╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ 
+{Style.RESET_ALL}"""
+
+# ---------- Helpers ----------
+def load_keys_json():
+    if not os.path.exists(KEY_FILE_JSON):
+        return []
+    with open(KEY_FILE_JSON, "r") as f:
+        return json.load(f)
+
+def save_keys_json(keys):
+    with open(KEY_FILE_JSON, "w") as f:
+        json.dump(keys, f, indent=2)
+
+def pause_and_clear():
+    input(Fore.YELLOW + "\nPress Enter to return to main menu..." + Style.RESET_ALL)
+    os.system("clear")
+    print_center_banner()
+
+def print_center_banner():
+    os.system("clear")
+    try:
+        width = os.get_terminal_size().columns
+    except OSError:
+        width = 80
+    for line in BANNER.split("\n"):
+        print(line.center(width))
+
+# ---------- Menu ----------
+def menu():
+    global BOT_TOKEN
+    print_center_banner()
+
+    # Load bot token and keys from key.txt
+    if os.path.exists(KEY_FILE_TXT):
+        with open(KEY_FILE_TXT, "r") as f:
+            lines = [line.strip() for line in f if line.strip()]
+            if lines:
+                BOT_TOKEN = lines[0]
+                initial_keys = lines[1:]
+                if initial_keys:
+                    save_keys_json(initial_keys)
+
+    while True:
+        print(Fore.MAGENTA + "\n===== BOT MENU =====" + Style.RESET_ALL)
+        print(Fore.CYAN + "[1]" + Fore.WHITE + " > Create/Add KEY")
+        print(Fore.CYAN + "[2]" + Fore.WHITE + " > Delete KEY")
+        print(Fore.CYAN + "[3]" + Fore.WHITE + " > Start bot")
+        print(Fore.CYAN + "[4]" + Fore.WHITE + " > Exit")
+        print(Fore.MAGENTA + "====================" + Style.RESET_ALL)
+        choice = input(Fore.GREEN + "Choose a menu: " + Style.RESET_ALL).strip()
+
+        if choice == "1":
+            key = input(Fore.GREEN + "Enter new key: " + Style.RESET_ALL).strip()
+            if not key:
+                print(Fore.RED + "❌ Key cannot be empty!")
+            else:
+                keys = load_keys_json()
+                if key in keys:
+                    print(Fore.YELLOW + "⚠️ Key already exists!")
+                else:
+                    keys.append(key)
+                    save_keys_json(keys)
+                    print(Fore.GREEN + "✅ Key added!")
+            pause_and_clear()
+
+        elif choice == "2":
+            keys = load_keys_json()
+            if not keys:
+                print(Fore.RED + "❌ No keys to delete!")
+                pause_and_clear()
+                continue
+
+            print(Fore.CYAN + "Current keys:" + Style.RESET_ALL)
+            for i, k in enumerate(keys, 1):
+                print(f"[{i}] {k}")
+            num = input(Fore.GREEN + "Enter the number of the key to delete: " + Style.RESET_ALL).strip()
+            if not num.isdigit() or int(num) < 1 or int(num) > len(keys):
+                print(Fore.RED + "❌ Invalid number!")
+            else:
+                removed = keys.pop(int(num)-1)
+                save_keys_json(keys)
+                print(Fore.GREEN + f"✅ Key '{removed}' deleted!")
+            pause_and_clear()
+
+        elif choice == "3":
+            if not BOT_TOKEN:
+                print(Fore.RED + "❌ Bot token not found in key.txt!")
+                pause_and_clear()
+            else:
+                keys = load_keys_json()
+                if not keys:
+                    print(Fore.RED + "❌ No keys found! Add at least one key.")
+                    pause_and_clear()
+                else:
+                    start_bot()
+                    pause_and_clear()
+
+        elif choice == "4":
+            print(Fore.CYAN + "👋 Exiting program...")
+            exit()
+
+        else:
+            print(Fore.RED + "❌ Invalid choice! Please enter 1–4.")
+            pause_and_clear()
+
+# ---------- Bot ----------
+def start_bot():
+    bot = telebot.TeleBot(BOT_TOKEN)
+
+    @bot.message_handler(commands=['start'])
+    def start_cmd(message):
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        kb.add(types.KeyboardButton("/key"))
+        bot.send_message(message.chat.id, "👋 Welcome! Tap /key to enter your key.", reply_markup=kb)
+
+    @bot.message_handler(commands=['key'])
+    def ask_key(message):
+        msg = bot.send_message(message.chat.id, "🔑 Please enter your key:")
+        bot.register_next_step_handler(msg, check_key)
+
+    def check_key(message):
+        user_key = (message.text or "").strip()
+        if not user_key:
+            bot.reply_to(message, "❌ Key cannot be empty.")
+            return
+        allowed = set(load_keys_json())
+        if user_key in allowed:
+            markup = types.InlineKeyboardMarkup(row_width=3)
+            buttons = [types.InlineKeyboardButton(label, callback_data=f"choice_{num}") for num, label in CHOICES.items()]
+            markup.add(*buttons)
+            bot.send_message(message.chat.id, "📋 Please choose an option:", reply_markup=markup)
+        else:
+            bot.reply_to(message, "❌ Invalid key.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("choice_"))
+    def handle_choice(call):
+        choice_num = int(call.data.split("_")[1])
+        choice_label = CHOICES.get(choice_num, "Unknown")
+        bot.answer_callback_query(call.id, text=f"You chose {choice_label}")
+        bot.send_message(call.message.chat.id, f"⏳ Processing {choice_label}... Please wait.")
+        threading.Thread(target=delayed_busy_message, args=(bot, call.message.chat.id)).start()
+
+    def delayed_busy_message(bot_instance, chat_id):
+        delay = random.randint(30, 60)
+        time.sleep(delay)
+        bot_instance.send_message(chat_id, "⚠️ Please try again later, server is busy.")
+
+    print(Fore.GREEN + "\n🤖 Bot is running... Press Ctrl+C to stop.")
+    try:
+        bot.infinity_polling()
+    except KeyboardInterrupt:
+        print(Fore.CYAN + "\n⏹️ Bot stopped by user.")
+    except Exception as e:
+        print(Fore.RED + f"❌ Error while running bot: {e}")
+
+# ---------- Main ----------
+if __name__ == "__main__":
+    print_center_banner()
+    menu()
