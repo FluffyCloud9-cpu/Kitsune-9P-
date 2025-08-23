@@ -206,9 +206,10 @@ def start_bot():
 if __name__ == "__main__":
     print_center_banner()
     try:
+        # Try interactive menu
         menu()
     except EOFError:
-        # Non-interactive mode: auto-start bot
+        # If stdin is missing (non-interactive, e.g. auto-launch from script.py)
         print(Fore.YELLOW + "⚠️ No interactive input available. Auto-starting bot..." + Style.RESET_ALL)
         if BOT_TOKEN:
             start_bot()
